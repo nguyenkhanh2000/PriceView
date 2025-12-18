@@ -6,6 +6,270 @@
     <title>SignalR Dynamic Channels</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.17/signalr.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr-protocol-msgpack@7.0.5/dist/browser/signalr-protocol-msgpack.min.js"></script>
+    <style>
+                body {
+                        font-family: 'Inter', sans-serif;
+
+        }
+
+                .channel-group {
+                        border: 1px solid #e2e8f0;
+                        border-radius: 0.5rem;
+                        padding: 1.5rem;
+                        margin-bottom: 1.5rem;
+                        background-color: #f8fafc;
+
+        }
+
+                .channel-grid {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                        gap: 1rem;
+
+        }
+
+                .channel-item {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 0.75rem;
+                        background-color: #ffffff;
+                        border-radius: 0.375rem;
+                        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+
+        }
+
+                .btn {
+                        padding: 0.5rem 1rem;
+                        border-radius: 0.375rem;
+                        font-weight: 600;
+                        color: #ffffff;
+                        cursor: pointer;
+                        transition: background-color 0.2s;
+
+        }
+
+                .btn-sub {
+                        background-color: #2563eb;
+
+        }
+
+                    .btn-sub:hover {
+                            background-color: #1d4ed8;
+
+            }
+
+                .btn-unsub {
+                        background-color: #dc2626;
+
+        }
+
+                    .btn-unsub:hover {
+                            background-color: #b91c1c;
+
+            }
+
+                #messages-container {
+                        margin-top: 2rem;
+                        padding: 1.5rem;
+                        background-color: #1e293b;
+                        color: #e2e8f0;
+                        border-radius: 0.5rem;
+                        height: 300px;
+                        overflow-y: auto;
+                        font-family: 'Courier New', Courier, monospace;
+
+        }
+
+
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-7xl mx-auto">
+        <h2 class="text-3xl font-bold mb-6 text-gray-800">SignalR Dynamic Channels</h2>
+
+        <div id="channels-container"></div>
+
+        <div id="messages-container">
+            <h3 class="text-xl font-semibold mb-4 text-white">Received Messages:</h3>
+            <ul id="messages" class="space-y-2"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Set up the SignalR connection
+        // const connection = new signalR.HubConnectionBuilder()
+        //     .withUrl("http://mddspool.fpts.com.vn/channelHub", { transport: signalR.HttpTransportType.ServerSentEvents })
+        //     .build();
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("https://marketstream.fpts.com.vn/mdds/channelHub")
+            .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
+            .build();
+
+        // Event handlers for subscribed, unsubscribed, and receiving messages
+        connection.on("Subscribed", (channelName) => {
+            console.log(`Subscribed to ${channelName}`);
+            updateButtonState(channelName, true);
+        });
+
+        connection.on("Unsubscribed", (channelName) => {
+            console.log(`Unsubscribed from ${channelName}`);
+            updateButtonState(channelName, false);
+        });
+
+        connection.on("ReceiveMessage", (channel, message) => {
+            const messagesList = document.getElementById("messages");
+            const li = document.createElement("li");
+            li.textContent = `[${new Date().toLocaleTimeString()}] ${channel}: ${message}`;
+            messagesList.appendChild(li);
+            // Auto-scroll to the bottom
+            const container = document.getElementById('messages-container');
+            container.scrollTop = container.scrollHeight;
+        });
+
+        // Start the SignalR connection
+        connection.start().catch(err => console.error(err));
+
+        // Subscribe to a specific channel
+        function subscribeToChannel(channelName) {
+            connection.invoke("SubscribeToChannel", channelName)
+                .catch(err => console.error(err));
+        }
+
+        // Unsubscribe from a specific channel
+        function unsubscribeFromChannel(channelName) {
+            connection.invoke("UnsubscribeFromChannel", channelName)
+                .catch(err => console.error(err));
+        }
+
+        function updateButtonState(channelName, isSubscribed) {
+            const subButton = document.querySelector(`button[onclick="subscribeToChannel('${channelName}')"]`);
+            const unsubButton = document.querySelector(`button[onclick="unsubscribeFromChannel('${channelName}')"]`);
+            if (subButton && unsubButton) {
+                subButton.disabled = isSubscribed;
+                unsubButton.disabled = !isSubscribed;
+                subButton.style.opacity = isSubscribed ? 0.5 : 1;
+                unsubButton.style.opacity = isSubscribed ? 1 : 0.5;
+            }
+        }
+
+        const channels = [
+            "Channel_STO_G1", "Channel_STO_G2", "Channel_STO_G3", "Channel_STO_G4", "Channel_STO_G7", "Channel_STO_T1", "Channel_STO_T4", "Channel_STO_T2", "Channel_STO_T3", "Channel_STO_T6", "Channel_STO_R1", "Channel_STO_AL",
+            "Channel_BDO_G1", "Channel_BDO_G2", "Channel_BDO_G3", "Channel_BDO_G4", "Channel_BDO_G7", "Channel_BDO_T1", "Channel_BDO_T4", "Channel_BDO_T2", "Channel_BDO_T3", "Channel_BDO_T6", "Channel_BDO_R1", "Channel_BDO_AL",
+            "Channel_RPO_G1", "Channel_RPO_G2", "Channel_RPO_G3", "Channel_RPO_G4", "Channel_RPO_G7", "Channel_RPO_T1", "Channel_RPO_T4", "Channel_RPO_T2", "Channel_RPO_T3", "Channel_RPO_T6", "Channel_RPO_R1", "Channel_RPO_AL",
+            "Channel_STX_G1", "Channel_STX_G2", "Channel_STX_G3", "Channel_STX_G4", "Channel_STX_G7", "Channel_STX_T1", "Channel_STX_T4", "Channel_STX_T2", "Channel_STX_T3", "Channel_STX_T6", "Channel_STX_R1", "Channel_STX_AL",
+            "Channel_BDX_G1", "Channel_BDX_G2", "Channel_BDX_G3", "Channel_BDX_G4", "Channel_BDX_G7", "Channel_BDX_T1", "Channel_BDX_T4", "Channel_BDX_T2", "Channel_BDX_T3", "Channel_BDX_T6", "Channel_BDX_R1", "Channel_BDX_AL",
+            "Channel_DVX_G1", "Channel_DVX_G2", "Channel_DVX_G3", "Channel_DVX_G4", "Channel_DVX_G7", "Channel_DVX_T1", "Channel_DVX_T4", "Channel_DVX_T2", "Channel_DVX_T3", "Channel_DVX_T6", "Channel_DVX_R1", "Channel_DVX_AL",
+            "Channel_UPX_G1", "Channel_UPX_G2", "Channel_UPX_G3", "Channel_UPX_G4", "Channel_UPX_G7", "Channel_UPX_T1", "Channel_UPX_T4", "Channel_UPX_T2", "Channel_UPX_T3", "Channel_UPX_T6", "Channel_UPX_R1", "Channel_UPX_AL",
+            "Channel_HCX_G1", "Channel_HCX_G2", "Channel_HCX_G3", "Channel_HCX_G4", "Channel_HCX_G7", "Channel_HCX_T1", "Channel_HCX_T4", "Channel_HCX_T2", "Channel_HCX_T3", "Channel_HCX_T6", "Channel_HCX_R1", "Channel_HCX_AL",
+            "Channel_STO", "Channel_STX", "Channel_BDO", "Channel_RPO", "Channel_UPX", "Channel_DVX", "Channel_HCX", "Channel_BDX",
+                     "CHANNEL_S5G_COMMAND_ROOT"  // Thêm kênh mới tại đây
+                ];
+
+        const groupedChannels = channels.reduce((acc, channel) => {
+            let group;
+            const parts = channel.split('_');
+            if (parts.length > 2) {
+                group = parts[1];
+            } else if (parts.length === 3 && parts[2] === "COMMAND" && parts[1] === "S5G") {
+                // Xử lý trường hợp đặc biệt cho CHANNEL_S5G_COMMAND_ROOT, tạo nhóm mới là S5G_COMMAND_ROOT
+                if (channel === "CHANNEL_S5G_COMMAND_ROOT") {
+                    group = "S5G_COMMAND_ROOT";
+                } else {
+                    // Xử lý các kênh 3 phần tử khác nếu có
+                    group = parts[1];
+                }
+            } else {
+                group = "OTHERS"; // Các kênh không có dạng CHANNEL_XXX_YYY được đưa vào nhóm "OTHERS"
+            }
+
+            // Nếu kênh là CHANNEL_S5G_COMMAND_ROOT, ta sẽ nhóm nó theo hậu tố COMMAND_ROOT.
+            if (channel === "CHANNEL_S5G_COMMAND_ROOT") {
+                group = "S5G_COMMAND_ROOT";
+            }
+
+            if (!acc[group]) {
+                acc[group] = [];
+            }
+            acc[group].push(channel);
+            return acc;
+        }, {});
+
+        // Đảm bảo các kênh ngắn (như Channel_STO, Channel_STX) cũng được đưa vào nhóm OTHERS
+        channels.filter(c => c.split('_').length === 2).forEach(c => {
+            const group = "OTHERS";
+            if (!groupedChannels[group]) {
+                groupedChannels[group] = [];
+            }
+            if (!groupedChannels[group].includes(c)) {
+                groupedChannels[group].push(c);
+            }
+        });
+
+        const container = document.getElementById('channels-container');
+        for (const group in groupedChannels) {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'channel-group';
+
+            const groupTitle = document.createElement('h3');
+            groupTitle.className = 'text-xl font-semibold mb-4 text-gray-700';
+            groupTitle.textContent = `Group: ${group}`;
+            groupDiv.appendChild(groupTitle);
+
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'channel-grid';
+
+            groupedChannels[group].forEach(channelName => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'channel-item';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'font-medium text-gray-700';
+                nameSpan.textContent = channelName;
+
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'flex space-x-2';
+
+                const subButton = document.createElement('button');
+                subButton.textContent = 'Subscribe';
+                subButton.className = 'btn btn-sub';
+                subButton.onclick = () => subscribeToChannel(channelName);
+
+                const unsubButton = document.createElement('button');
+                unsubButton.textContent = 'Unsubscribe';
+                unsubButton.className = 'btn btn-unsub';
+                unsubButton.onclick = () => unsubscribeFromChannel(channelName);
+
+                buttonsDiv.appendChild(subButton);
+                buttonsDiv.appendChild(unsubButton);
+
+                itemDiv.appendChild(nameSpan);
+                itemDiv.appendChild(buttonsDiv);
+
+                gridDiv.appendChild(itemDiv);
+
+                updateButtonState(channelName, false); // Initial state
+            });
+
+            groupDiv.appendChild(gridDiv);
+            container.appendChild(groupDiv);
+        }
+    </script>
+</body>
+</html>
+
+
+
+@* <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalR Dynamic Channels</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.17/signalr.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr-protocol-msgpack@7.0.5/dist/browser/signalr-protocol-msgpack.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -77,8 +341,14 @@
 
     <script>
         // Set up the SignalR connection
+        // const connection = new signalR.HubConnectionBuilder()
+        //     .withUrl("https://marketstream.fpts.com.vn/mdds/channelHub", { transport: signalR.HttpTransportType.ServerSentEvents })
+        //     .build();
+        //https://mddspool.fpts.com.vn/channelHub
+        //https://marketstream.fpts.com.vn/mdds/channelHub
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl("https://marketstream.fpts.com.vn/mdds/channelHub", { transport: signalR.HttpTransportType.ServerSentEvents })
+            .withUrl("https://marketstream.fpts.com.vn/mdds/channelHub")
+            .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
             .build();
 
         // Event handlers for subscribed, unsubscribed, and receiving messages
@@ -196,92 +466,6 @@
 
             groupDiv.appendChild(gridDiv);
             container.appendChild(groupDiv);
-        }
-    </script>
-</body>
-</html>
-
-
-
-@* <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SignalR Dynamic Channels</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr-protocol-msgpack@7.0.5/dist/browser/signalr-protocol-msgpack.min.js"></script>
-</head>
-<body>
-    <h2>SignalR Dynamic Channels</h2>
-
-    <!-- Buttons to Subscribe and Unsubscribe from channels -->
-    <button onclick="subscribeToChannel('Channel_STO_G1')">Subscribe to Channel_STO_G1</button>
-    <button onclick="unsubscribeFromChannel('Channel_STO_G1')">Unsubscribe from Channel_STO_G1</button>
-    <br>
-    <br>
-
-    <button onclick="subscribeToChannel('Channel_STO_G2')">Subscribe to Channel_STO_G2</button>
-    <button onclick="unsubscribeFromChannel('Channel_STO_G2')">Unsubscribe from Channel_STO_G2</button>
-    <br>
-    <br>
-
-    <button onclick="subscribeToChannel('Channel_STO_G3')">Subscribe to Channel_STO_G3</button>
-    <button onclick="unsubscribeFromChannel('Channel_STO_G3')">Unsubscribe from Channel_STO_G3</button>
-    <br>
-    <br>
-
-    <button onclick="subscribeToChannel('Channel_STO_G4')">Subscribe to Channel_STO_G4</button>
-    <button onclick="unsubscribeFromChannel('Channel_STO_G4')">Unsubscribe from Channel_STO_G4</button>
-    <br>
-    <br>
-
-    <div id="messages"></div>
-
-    <script>
-        //https://pricegateway.fpts.com.vn/channelHub
-        //http://localhost:5149/channelHub
-        //https://mddspool.fpts.com.vn/channelHub
-        //http://localhost:5145/channelHub
-        // Set up the SignalR connection
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("https://marketstream.fpts.com.vn/mdds/channelHub", { transport: signalR.HttpTransportType.ServerSentEvents })
-            // .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
-            .build();
-
-        // Event handlers for subscribed, unsubscribed, and receiving messages
-        connection.on("Subscribed", (channelName) => {
-            console.log(`Subscribed to ${channelName}`);
-        });
-
-        connection.on("Unsubscribed", (channelName) => {
-            console.log(`Unsubscribed from ${channelName}`);
-        });
-
-        // connection.on("ReceiveMessage", (message) => {
-        //     const messageDiv = document.getElementById("messages");
-        //     messageDiv.innerHTML += `<p>${message}</p>`;
-        // });
-        // Lắng nghe sự kiện ReceiveMessage từ HubHSX
-        connection.on("ReceiveMessage", (channel, message) => {
-            const li = document.createElement("li");
-            li.textContent = `${channel}: ${message} (ChannelHub)`;
-            document.getElementById("messages").appendChild(li);
-        });
-
-        // Start the SignalR connection
-        connection.start().catch(err => console.error(err));
-
-        // Subscribe to a specific channel
-        function subscribeToChannel(channelName) {
-            connection.invoke("SubscribeToChannel", channelName)
-                .catch(err => console.error(err));
-        }
-
-        // Unsubscribe from a specific channel
-        function unsubscribeFromChannel(channelName) {
-            connection.invoke("UnsubscribeFromChannel", channelName)
-                .catch(err => console.error(err));
         }
     </script>
 </body>
