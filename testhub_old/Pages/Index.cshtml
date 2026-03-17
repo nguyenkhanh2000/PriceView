@@ -1,0 +1,184 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "SignalR Monitor v2.2";
+}
+
+<div class="text-center">
+    <h1 class="display-4">SignalR Monitor (Legacy v2.2)</h1>
+
+    <div style="margin: 20px;">
+        Trạng thái:
+        <span id="connStatus" style="font-weight:bold; color:red">
+            Đang ngắt kết nối
+        </span>
+    </div>
+
+    <div id="dataLog"
+         style="text-align:left;
+                padding:15px;
+                border:1px solid #ccc;
+                height:400px;
+                overflow-y:auto;
+                background:#f4f4f4;
+                font-family:Consolas, monospace;">
+        <p>> Hệ thống: Đang khởi tạo kết nối...</p>
+    </div>
+</div>
+
+@section Scripts {
+
+    <!-- 1. jQuery (BẮT BUỘC) -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+    <!-- 2. SignalR 2.2.1 -->
+    <script src="~/scripts/jquery.signalR-2.2.1.min.js"></script>
+
+    <!-- 3. Code JS -->
+    <script>
+        $(document).ready(function () {
+
+            if (typeof $.hubConnection !== "function") {
+                console.error("SignalR 2.x chưa được load");
+                return;
+            }
+
+            var serverUrl = "http://localhost:33039/signalr";
+            var statusDisplay = $("#connStatus");
+            var logDisplay = $("#dataLog");
+
+            function addLog(msg) {
+                logDisplay.append(
+                    "<p>> " + new Date().toLocaleTimeString() + ": " + msg + "</p>"
+                );
+                logDisplay.scrollTop(logDisplay[0].scrollHeight);
+            }
+
+            // 1. Tạo connection (SignalR 2.x)
+            var connection = $.hubConnection(serverUrl, {
+                useDefaultPath: false
+            });
+
+            // QueryString theo code C#
+            //connection.qs = { transport: "webSockets" };
+
+            // 2. Tạo proxy đúng HubName
+            var hubProxy = connection.createHubProxy("HubHSX2");
+
+            // 3. Lắng nghe event từ server
+            hubProxy.on("showUsersConnected", function (event, summary, listCSRC) {
+                var count = listCSRC ? listCSRC.length : 0;
+                addLog("Event: " + event + ", Clients: " + count);
+                console.log(listCSRC);
+            });
+
+            // 4. Trạng thái kết nối
+            connection.reconnecting(function () {
+                statusDisplay.text("Đang kết nối lại...").css("color", "orange");
+            });
+
+            connection.reconnected(function () {
+                statusDisplay.text("Đã kết nối lại").css("color", "green");
+            });
+
+            connection.disconnected(function () {
+                statusDisplay.text("Mất kết nối").css("color", "red");
+                setTimeout(start, 5000);
+            });
+
+            function start() {
+                connection.start({
+                    transport: ['webSockets', 'serverSentEvents', 'longPolling']
+                })
+                    .done(function () {
+                        statusDisplay.text("Đã kết nối").css("color", "green");
+                        addLog("Kết nối thành công HubHSX2");
+                    })
+                    .fail(function (err) {
+                        addLog("Lỗi: " + err);
+                        console.error(err);
+                    });
+            }
+
+            start();
+        });
+    </script>
+}
+
+@* 
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">SignalR Monitor</h1>
+    <div style="margin: 20px;">
+        Trạng thái: <span id="connStatus" style="font-weight:bold; color:red">Đang ngắt kết nối</span>
+    </div>
+
+    <div id="dataLog" style="text-align:left; padding:15px; border:1px solid #ccc; height:400px; overflow-y:auto; background:#f4f4f4; font-family:Consolas, monospace;">
+        <p>> Hệ thống: Đang khởi tạo kết nối...</p>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
+
+
+<script>
+    // 1. Cấu hình kết nối đến đúng địa chỉ và cổng của bạn
+    // Chúng ta thêm '/hubHSX2' vào sau vì đó là endpoint đã map ở Program.cs
+    const hubUrl = "http://localhost:33039/hubHSX2";
+
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(hubUrl + "?transport=Socket") // Truyền QueryString theo yêu cầu code C#
+        .withAutomaticReconnect()
+        .build();
+
+    const statusDisplay = document.getElementById("connStatus");
+    const logDisplay = document.getElementById("dataLog");
+
+    function addLog(msg) {
+        const p = document.createElement("p");
+        p.style.margin = "2px 0";
+        p.innerText = `> ${new Date().toLocaleTimeString()}: ${msg}`;
+        logDisplay.appendChild(p);
+        logDisplay.scrollTop = logDisplay.scrollHeight;
+    }
+
+    // 2. Lắng nghe sự kiện từ Server (như trong code C# của bạn)
+    connection.on("showUsersConnected", (event, summary, listCSRC) => {
+        addLog(`Nhận Event: ${event} - Số lượng Client: ${listCSRC ? listCSRC.length : 0}`);
+        console.log("Dữ liệu chi tiết:", listCSRC);
+    });
+
+    // 3. Xử lý các trạng thái kết nối
+    connection.onreconnecting(() => {
+        statusDisplay.innerText = "Đang kết nối lại...";
+        statusDisplay.style.color = "orange";
+    });
+
+    connection.onreconnected(() => {
+        statusDisplay.innerText = "Đã kết nối lại";
+        statusDisplay.style.color = "green";
+        addLog("Đã khôi phục kết nối.");
+    });
+
+    // 4. Bắt đầu chạy
+    async function start() {
+        try {
+            await connection.start();
+            statusDisplay.innerText = "Đã kết nối thành công!";
+            statusDisplay.style.color = "green";
+            addLog("Kết nối thành công tới Hub.");
+        } catch (err) {
+            console.error(err);
+            statusDisplay.innerText = "Lỗi kết nối!";
+            addLog("Lỗi: " + err.message);
+            setTimeout(start, 5000); // Thử lại sau 5 giây nếu lỗi
+        }
+    }
+
+    start();
+</script> *@

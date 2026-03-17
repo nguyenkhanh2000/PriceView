@@ -102,8 +102,11 @@
         // const connection = new signalR.HubConnectionBuilder()
         //     .withUrl("http://mddspool.fpts.com.vn/channelHub", { transport: signalR.HttpTransportType.ServerSentEvents })
         //     .build();
+
+        //https://marketstream.fpts.com.vn/mdds/channelHub
+        //http://localhost:5145/channelHub
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl("https://marketstream.fpts.com.vn/mdds/channelHub")
+            .withUrl("http://localhost:5145/channelHub")
             .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
             .build();
 

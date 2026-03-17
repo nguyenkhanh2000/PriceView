@@ -1,0 +1,209 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalR Dynamic Channels</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.17/signalr.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr-protocol-msgpack@7.0.5/dist/browser/signalr-protocol-msgpack.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .channel-group {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background-color: #f8fafc;
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .channel-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background-color: #ffffff;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            color: #ffffff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-sub {
+            background-color: #2563eb;
+        }
+
+            .btn-sub:hover {
+                background-color: #1d4ed8;
+            }
+
+        .btn-unsub {
+            background-color: #dc2626;
+        }
+
+            .btn-unsub:hover {
+                background-color: #b91c1c;
+            }
+
+        #messages-container {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-7xl mx-auto">
+        <h2 class="text-3xl font-bold mb-6 text-gray-800">SignalR Dynamic Channels</h2>
+
+        <div id="channels-container"></div>
+
+        <div id="messages-container">
+            <h3 class="text-xl font-semibold mb-4 text-white">Received Messages:</h3>
+            <ul id="messages" class="space-y-2"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Set up the SignalR connection
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("http://localhost:5257/marketHub")
+            .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
+            .build();
+
+        // Event handlers for subscribed, unsubscribed, and receiving messages
+        connection.on("Subscribed", (channelName) => {
+            console.log(`Subscribed to ${channelName}`);
+            updateButtonState(channelName, true);
+        });
+
+        connection.on("Unsubscribed", (channelName) => {
+            console.log(`Unsubscribed from ${channelName}`);
+            updateButtonState(channelName, false);
+        });
+
+        connection.on("ReceiveMessage", (channel, message) => {
+            const messagesList = document.getElementById("messages");
+            const li = document.createElement("li");
+            li.textContent = `[${new Date().toLocaleTimeString()}] ${channel}: ${message}`;
+            messagesList.appendChild(li);
+            // Auto-scroll to the bottom
+            const container = document.getElementById('messages-container');
+            container.scrollTop = container.scrollHeight;
+        });
+
+        // Start the SignalR connection
+        connection.start().catch(err => console.error(err));
+
+        // Subscribe to a specific channel
+        function subscribeToChannel(channelName) {
+            connection.invoke("SubscribeToChannel", channelName)
+                .catch(err => console.error(err));
+        }
+
+        // Unsubscribe from a specific channel
+        function unsubscribeFromChannel(channelName) {
+            connection.invoke("UnsubscribeFromChannel", channelName)
+                .catch(err => console.error(err));
+        }
+
+        function updateButtonState(channelName, isSubscribed) {
+            const subButton = document.querySelector(`button[onclick="subscribeToChannel('${channelName}')"]`);
+            const unsubButton = document.querySelector(`button[onclick="unsubscribeFromChannel('${channelName}')"]`);
+            if (subButton && unsubButton) {
+                subButton.disabled = isSubscribed;
+                unsubButton.disabled = !isSubscribed;
+                subButton.style.opacity = isSubscribed ? 0.5 : 1;
+                unsubButton.style.opacity = isSubscribed ? 1 : 0.5;
+            }
+        }
+
+        // Danh sách channel mới
+        const channels = [
+            "TKTT",
+            "LS",
+            "PT",
+            "PO"
+        ];
+
+        // Tối giản hóa logic phân nhóm, đưa tất cả vào nhóm "Redis Channels"
+        const groupedChannels = {
+            "Redis Channels": channels
+        };
+
+        const container = document.getElementById('channels-container');
+        for (const group in groupedChannels) {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'channel-group';
+
+            const groupTitle = document.createElement('h3');
+            groupTitle.className = 'text-xl font-semibold mb-4 text-gray-700';
+            groupTitle.textContent = `Group: ${group}`;
+            groupDiv.appendChild(groupTitle);
+
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'channel-grid';
+
+            groupedChannels[group].forEach(channelName => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'channel-item';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'font-medium text-gray-700';
+                nameSpan.textContent = channelName;
+
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'flex space-x-2';
+
+                const subButton = document.createElement('button');
+                subButton.textContent = 'Subscribe';
+                subButton.className = 'btn btn-sub';
+                subButton.onclick = () => subscribeToChannel(channelName);
+
+                const unsubButton = document.createElement('button');
+                unsubButton.textContent = 'Unsubscribe';
+                unsubButton.className = 'btn btn-unsub';
+                unsubButton.onclick = () => unsubscribeFromChannel(channelName);
+
+                buttonsDiv.appendChild(subButton);
+                buttonsDiv.appendChild(unsubButton);
+
+                itemDiv.appendChild(nameSpan);
+                itemDiv.appendChild(buttonsDiv);
+
+                gridDiv.appendChild(itemDiv);
+            });
+
+            groupDiv.appendChild(gridDiv);
+            container.appendChild(groupDiv);
+
+            // Khởi tạo trạng thái ban đầu của nút bấm sau khi render DOM
+            groupedChannels[group].forEach(channelName => {
+                updateButtonState(channelName, false);
+            });
+        }
+    </script>
+</body>
+</html>
